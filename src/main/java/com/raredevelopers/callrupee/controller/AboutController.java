@@ -15,6 +15,7 @@ public class AboutController {
     @Autowired
     private ConfigUtil configUtil;
 
+    @GetMapping
     public ResponseEntity<String> getAbout() {
         String about = configUtil.getProperty("about");
         return new ResponseEntity<>(about, HttpStatus.OK);
