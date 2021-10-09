@@ -181,13 +181,6 @@ public class UserController {
         return result.isEmpty() ? new ResponseEntity<>(result, HttpStatus.NOT_FOUND) : new ResponseEntity<>(result, HttpStatus.OK);
     }
 
-    @GetMapping("/about")
-    public ResponseEntity<String> getAbout() {
-//        String about = "<h1 style=\"text-align: center;\">Call Rupee App</h1><h4>Version: v1.0.0</h4><p>Call Rupee is the best earning app , fully secure and very easy to use for users .<br />There will be no issues in payments to users but it will take some time to send money to your bank account so don't worry about it.</p><p><span style=\"color: #ff0000;\">Note:</span> Its takes maximum 1 day to send money.</p><p>You can directly interact with our service head to solve your problems and doubts by these below links:<br /><br /><strong>Help:</strong></p><p>Email: <a href=\"mailto:kamsu.saikrishnasahu@gmail.com\">kamsu.saikrishnasahu@gmail.com</a></p><p>Link us Instagram: <a href=\"https://instagram.com/call_rupee\">https://instagram.com/call_rupee</a></p>";
-        String about = configUtil.getProperty("about");
-        return new ResponseEntity<>(about, HttpStatus.OK);
-    }
-
     @PatchMapping("/records/{id}")
     public ResponseEntity<String> updateStatus(@PathVariable("id") String id) {
         Optional<Balance> _balance = balanceRepository.findById(id);
