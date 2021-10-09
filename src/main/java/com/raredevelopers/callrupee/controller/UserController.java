@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.raredevelopers.callrupee.ConfigUtil;
 import com.raredevelopers.callrupee.constant.Process;
 import com.raredevelopers.callrupee.model.Balance;
 import com.raredevelopers.callrupee.model.User;
@@ -25,6 +26,8 @@ public class UserController {
     private UserRepository userRepository;
     @Autowired
     private BalanceRepository balanceRepository;
+    @Autowired
+    private ConfigUtil configUtil;
 
     @GetMapping("/user")
     public ResponseEntity<List<User>> getAllUsers() {
@@ -120,12 +123,18 @@ public class UserController {
 
         if (userData.isPresent() && userData.get().isActive()) {
             User _user = userData.get();
+            Balance balance = new Balance();
 
             float balanceAmount = 0.0f;
             if ((userBalance.getDuration() == 0)) {
+                //WITHDRAW
                 balanceAmount = _user.getBalance() + userBalance.getAmount();
+                balance.setAmount(Float.parseFloat(String.format("%.2f", Math.abs(userBalance.getAmount()))));
             } else {
-                balanceAmount = _user.getBalance() + (userBalance.getDuration() / DURATION_TIME_TO_AMOUNT);
+                //DEPOSIT
+                float limit = Float.parseFloat(configUtil.getProperty("DURATION_TIME_TO_AMOUNT"));
+                balanceAmount = _user.getBalance() + Float.parseFloat(String.format("%.2f", (userBalance.getDuration() / limit)));
+                balance.setAmount(Float.parseFloat(String.format("%.2f", (userBalance.getDuration() / limit))));
             }
             balanceAmount = Float.parseFloat(String.format("%.2f", balanceAmount));
 
@@ -133,10 +142,8 @@ public class UserController {
                 return new ResponseEntity<>("Can't allow as " + userBalance.getAmount() + " is greater than you balance (" + _user.getBalance() + ").", HttpStatus.NOT_ACCEPTABLE);
             }
 
-            Balance balance = new Balance();
             balance.setFromPhone(userBalance.getFromPhone());
             balance.setToPhone(userBalance.getToPhone());
-            balance.setAmount(balanceAmount);
             balance.setDuration(userBalance.getDuration());
             balance.setProcess(userBalance.getAmount() < 0 ? Process.DEBIT_REQUEST : Process.CREDIT);
 
@@ -156,7 +163,7 @@ public class UserController {
         return new ResponseEntity<>(result, result.isEmpty() ? HttpStatus.NOT_FOUND : HttpStatus.OK);
     }
 
-    @GetMapping("/record/{phone}/[process]")
+    @GetMapping("/record/{phone}/{process}")
     public ResponseEntity<List<Balance>> getRecordsByProcess(@PathVariable("phone") String phone, @PathVariable("process") Process process) {
         List<Balance> balances = balanceRepository.findByFromPhone(phone);
         List<Balance> result = new ArrayList<>();
@@ -166,6 +173,33 @@ public class UserController {
             }
         }
         return result.isEmpty() ? new ResponseEntity<>(result, HttpStatus.NOT_FOUND) : new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    @GetMapping("/records/{process}")
+    public ResponseEntity<List<Balance>> getRecordsByOneProcess(@PathVariable("process") Process process) {
+        List<Balance> result = balanceRepository.findByProcess("DEBIT_REQUEST");
+        return result.isEmpty() ? new ResponseEntity<>(result, HttpStatus.NOT_FOUND) : new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    @GetMapping("/about")
+    public ResponseEntity<String> getAbout() {
+//        String about = "<h1 style=\"text-align: center;\">Call Rupee App</h1><h4>Version: v1.0.0</h4><p>Call Rupee is the best earning app , fully secure and very easy to use for users .<br />There will be no issues in payments to users but it will take some time to send money to your bank account so don't worry about it.</p><p><span style=\"color: #ff0000;\">Note:</span> Its takes maximum 1 day to send money.</p><p>You can directly interact with our service head to solve your problems and doubts by these below links:<br /><br /><strong>Help:</strong></p><p>Email: <a href=\"mailto:kamsu.saikrishnasahu@gmail.com\">kamsu.saikrishnasahu@gmail.com</a></p><p>Link us Instagram: <a href=\"https://instagram.com/call_rupee\">https://instagram.com/call_rupee</a></p>";
+        String about = configUtil.getProperty("about");
+        return new ResponseEntity<>(about, HttpStatus.OK);
+    }
+
+    @PatchMapping("/records/{id}")
+    public ResponseEntity<String> updateStatus(@PathVariable("id") String id) {
+        Optional<Balance> _balance = balanceRepository.findById(id);
+
+        if (_balance.isPresent()) {
+            Balance balance = _balance.get();
+            balance.setProcess(Process.DEBIT_SUCCESSFUL);
+            balanceRepository.save(balance);
+            return new ResponseEntity<>("TRUE", HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("FALSE", HttpStatus.NOT_FOUND);
+        }
     }
 
 }
