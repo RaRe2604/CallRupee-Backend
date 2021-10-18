@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Optional;
 
@@ -28,7 +32,8 @@ public class AuthController {
         String result = "Failed to send OTP";
         String phoneNumber = auth.getPhoneNumber();
         String code = generateCode();
-        if (sendOtpToPhone(phoneNumber, code)) {
+        String host = configUtil.getProperty("AUTH_HOST");
+        if (sendOtpToPhone(host, phoneNumber, code)) {
             result = "Success";
             auth.setCode(code);
             auth.setCount(0);
@@ -74,8 +79,34 @@ public class AuthController {
         return String.format("%06d", number);
     }
 
-    private boolean sendOtpToPhone(String phoneNumber, String code) {
-        return true;
-    }
+    private static boolean sendOtpToPhone(String host, String phoneNumber, String code) {
+        String message = "Hi, " + code + " is your Call Rupee verification code. Enjoy Earning.";
 
+        if (phoneNumber.startsWith("+"))
+            phoneNumber = phoneNumber.substring(1);
+
+        String data = "{\"phone\": \"" + phoneNumber + "\",\"body\": \"" + message + "\"}";
+
+        HttpURLConnection http = null;
+        try {
+            URL url = new URL(host);
+            http = (HttpURLConnection) url.openConnection();
+            http.setRequestMethod("POST");
+            http.setDoOutput(true);
+            http.setRequestProperty("Content-Type", "application/json");
+            byte[] out = data.getBytes(StandardCharsets.UTF_8);
+
+            OutputStream stream = http.getOutputStream();
+            stream.write(out);
+
+            return http.getResponseCode() == 200;
+        } catch (Exception ex) {
+            System.out.println(ex);
+        } finally {
+            if (http != null) {
+                http.disconnect();
+            }
+        }
+        return false;
+    }
 }
