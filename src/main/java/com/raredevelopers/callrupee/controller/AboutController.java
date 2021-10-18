@@ -17,7 +17,7 @@ public class AboutController {
 
     @GetMapping
     public ResponseEntity<String> getAbout() {
-        String about = configUtil.getProperty("about");
+        String about = configUtil.getProperty("ABOUT");
         return new ResponseEntity<>(about, HttpStatus.OK);
     }
 }

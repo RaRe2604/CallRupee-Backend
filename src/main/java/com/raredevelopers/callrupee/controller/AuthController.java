@@ -1,5 +1,6 @@
 package com.raredevelopers.callrupee.controller;
 
+import com.raredevelopers.callrupee.ConfigUtil;
 import com.raredevelopers.callrupee.model.Auth;
 import com.raredevelopers.callrupee.repository.AuthRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,9 @@ import java.util.Optional;
 public class AuthController {
 
     @Autowired
-    AuthRepository authRepository;
+    private AuthRepository authRepository;
+    @Autowired
+    private ConfigUtil configUtil;
 
     @PostMapping("/authenticate")
     public ResponseEntity<String> authenticate(@RequestBody Auth auth) {
@@ -28,6 +31,9 @@ public class AuthController {
         if (sendOtpToPhone(phoneNumber, code)) {
             result = "Success";
             auth.setCode(code);
+            auth.setCount(0);
+            auth.setStatus(true);
+            auth.setUsed(false);
             authRepository.save(auth);
         }
         return new ResponseEntity<>(result, HttpStatus.OK);
@@ -38,10 +44,25 @@ public class AuthController {
         String result = "Invalid OTP";
         String enteredPhoneNumber = auth.getPhoneNumber();
         String enteredCode = auth.getCode();
-        Optional<Auth> authFromDB = authRepository.findByPhoneNumber(enteredPhoneNumber);
-        if (authFromDB.isPresent() && enteredCode != null) {
-            if (enteredCode.equalsIgnoreCase(authFromDB.get().getCode())) {
-                result = "Success";
+        Optional<Auth> authOptional = authRepository.findById(enteredPhoneNumber);
+        if (authOptional.isPresent() && enteredCode != null) {
+            Auth authFromDB = authOptional.get();
+            if (authFromDB.isUsed()) {
+                result = "Already used OTP";
+            } else {
+                if (authFromDB.isStatus()) {
+                    if (enteredCode.equalsIgnoreCase(authFromDB.getCode())) {
+                        result = "Success";
+                        authFromDB.setUsed(true);
+                    } else {
+                        int attempts = Integer.parseInt(configUtil.getProperty("OTP_VERIFICATION_ATTEMPTS"));
+                        authFromDB.setStatus(authFromDB.getCount() < attempts);
+                    }
+                    authFromDB.setCount(authFromDB.getCount() + 1);
+                    authRepository.save(authFromDB);
+                } else {
+                    result = "Exceeds Attempts to Verify OTP";
+                }
             }
         }
         return new ResponseEntity<>(result, HttpStatus.OK);

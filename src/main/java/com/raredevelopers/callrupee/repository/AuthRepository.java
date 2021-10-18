@@ -8,5 +8,4 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AuthRepository extends MongoRepository<Auth, String> {
-  Optional<Auth> findByPhoneNumber(String phone);
 }
